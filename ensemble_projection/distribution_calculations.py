@@ -114,7 +114,7 @@ def beta_marginal_error(v_mesh, sample_m, n, y, ensemble_size):
     """Returns the value across m_mesh for a given v"""
     # m = (y * ensemble_size + x * n)/(ensemble_size + n)
     # v = (n/(ensemble_size + n))**2
-    beta=np.square((sample_m * n + y * ensemble_size) / (n + ensemble_size)) / (v_mesh * (n / (n + ensemble_size)) ** 2) / 2
+    beta=np.square((sample_m * n + y * ensemble_size) / (n + ensemble_size)) * n / (v_mesh * (n / (n + ensemble_size)) ** 2) / 2
     f=np.exp(-beta) / np.sqrt(np.pi * beta)+scipy.special.erf(np.sqrt(beta))
     return f
 

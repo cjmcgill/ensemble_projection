@@ -24,5 +24,7 @@ class Args(Tap):
     """The number of data to use in projection. Defaults to using all data."""
     bw_multiplier: float = 1
     """A multiplier for the width used in gaussian kernel density estimation for the initial prior distribution."""
-    integration_mesh_size: int = 1025
-    """The number of evaluation points to use in integration, across both mean and log(variance) axes."""
+    mu_mesh_size: int = 1025
+    """The number of evaluation points to use in integration, across the mean axis."""
+    v_mesh_size: int = 129
+    """The number of evaluation points to use in integration, across the variance axis."""

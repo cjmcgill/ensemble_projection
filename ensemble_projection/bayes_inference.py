@@ -20,7 +20,8 @@ def bayes_infer(
     bessel_correction_needed: bool = True,
     truncate_data_length: int = None,
     bw_multiplier: float = 1.,
-    integration_mesh_size: int = 1025,
+    mu_mesh_size: int = 1025,
+    v_mesh_size: int = 129,
 ):
     """
     Perform a bayesian inference calculations for the error of a NN
@@ -45,7 +46,8 @@ def bayes_infer(
         optimization_iterations=optimization_iterations,
         save_dir=save_dir,
         bw_multiplier=bw_multiplier,
-        integration_mesh_size=integration_mesh_size,
+        mu_mesh_size=mu_mesh_size,
+        v_mesh_size=v_mesh_size,
     )
 
 
@@ -57,7 +59,8 @@ def separate_priors(
     optimization_iterations: int,
     save_dir: str,
     bw_multiplier: float = 1.,
-    integration_mesh_size: int = 1025,
+    mu_mesh_size: int = 1025,
+    v_mesh_size: int = 129,
 ) -> Tuple[np.ndarray]:
 
     initial_mae = np.mean(np.abs(y))
@@ -72,8 +75,8 @@ def separate_priors(
     kl_iterations = []
     
     print("prior kde")
-    prior_mu, m_mesh = y_kde(y, bw, integration_mesh_size)
-    prior_v, v_mesh = s2_kde(s2, bw, integration_mesh_size)
+    prior_mu, m_mesh = y_kde(y, bw, mu_mesh_size)
+    prior_v, v_mesh = s2_kde(s2, bw, v_mesh_size)
     print("int prior mu")
     int_m = integrate.simps(
         y=prior_mu,
@@ -97,49 +100,49 @@ def separate_priors(
         s2=s2,
         n=ensemble_size,
     )
-    print("mae")
-    mae = expected_mae(
-        prior_mu=prior_mu,
-        prior_v=prior_v,
-        m_mesh=m_mesh,
-        v_mesh=v_mesh,
-        y=y,
-        s2=s2,
-        n=ensemble_size,
-        denominators=denoms,
-        ensemble_size=ensemble_size,
-    )
-    mae_iterations.append(mae)
-    print("nonvar")
-    nonvariance = expected_nonvariance(
-        prior_mu=prior_mu,
-        prior_v=prior_v,
-        m_mesh=m_mesh,
-        v_mesh=v_mesh,
-        y=y,
-        s2=s2,
-        n=ensemble_size,
-        denominators=denoms,
-    )
-    nonvariance_iterations.append(nonvariance)
+    # print("mae")
+    # mae = expected_mae(
+    #     prior_mu=prior_mu,
+    #     prior_v=prior_v,
+    #     m_mesh=m_mesh,
+    #     v_mesh=v_mesh,
+    #     y=y,
+    #     s2=s2,
+    #     n=ensemble_size,
+    #     denominators=denoms,
+    #     ensemble_size=ensemble_size,
+    # )
+    # mae_iterations.append(mae)
+    # print("nonvar")
+    # nonvariance = expected_nonvariance(
+    #     prior_mu=prior_mu,
+    #     prior_v=prior_v,
+    #     m_mesh=m_mesh,
+    #     v_mesh=v_mesh,
+    #     y=y,
+    #     s2=s2,
+    #     n=ensemble_size,
+    #     denominators=denoms,
+    # )
+    # nonvariance_iterations.append(nonvariance)
 
     iteration = 0
     previous_prior_mu = None
     kl_iterations.append(None)
     print("iteration", iteration)
-    print(f"expected mae {mae}")
-    print(f"expected nonvariance {nonvariance}")
-    save_iteration_stats(
-        iteration=iteration,
-        save_dir=save_dir,
-        mae_iterations=mae_iterations,
-        nonvariance_iterations=nonvariance_iterations,
-        kl_iterations=kl_iterations,
-        prior_mu=prior_mu,
-        prior_v=prior_v,
-        m_mesh=m_mesh,
-        v_mesh=v_mesh,
-    )
+    # print(f"expected mae {mae}")
+    # print(f"expected nonvariance {nonvariance}")
+    # save_iteration_stats(
+    #     iteration=iteration,
+    #     save_dir=save_dir,
+    #     mae_iterations=mae_iterations,
+    #     nonvariance_iterations=nonvariance_iterations,
+    #     kl_iterations=kl_iterations,
+    #     prior_mu=prior_mu,
+    #     prior_v=prior_v,
+    #     m_mesh=m_mesh,
+    #     v_mesh=v_mesh,
+    # )
 
     while convergence_checker.is_not_converged(
         iteration=iteration,
@@ -182,31 +185,31 @@ def separate_priors(
             s2=s2,
             n=ensemble_size,
         )
-        print("mae")
-        mae = expected_mae(
-            prior_mu=prior_mu,
-            prior_v=prior_v,
-            m_mesh=m_mesh,
-            v_mesh=v_mesh,
-            y=y,
-            s2=s2,
-            n=ensemble_size,
-            denominators=denoms,
-            ensemble_size=ensemble_size,
-        )
-        mae_iterations.append(mae)
-        print("nonvariance")
-        nonvariance = expected_nonvariance(
-            prior_mu=prior_mu,
-            prior_v=prior_v,
-            m_mesh=m_mesh,
-            v_mesh=v_mesh,
-            y=y,
-            s2=s2,
-            n=ensemble_size,
-            denominators=denoms,
-        )
-        nonvariance_iterations.append(nonvariance)
+        # print("mae")
+        # mae = expected_mae(
+        #     prior_mu=prior_mu,
+        #     prior_v=prior_v,
+        #     m_mesh=m_mesh,
+        #     v_mesh=v_mesh,
+        #     y=y,
+        #     s2=s2,
+        #     n=ensemble_size,
+        #     denominators=denoms,
+        #     ensemble_size=ensemble_size,
+        # )
+        # mae_iterations.append(mae)
+        # print("nonvariance")
+        # nonvariance = expected_nonvariance(
+        #     prior_mu=prior_mu,
+        #     prior_v=prior_v,
+        #     m_mesh=m_mesh,
+        #     v_mesh=v_mesh,
+        #     y=y,
+        #     s2=s2,
+        #     n=ensemble_size,
+        #     denominators=denoms,
+        # )
+        # nonvariance_iterations.append(nonvariance)
         print("kl")
         kl = kl_divergence(
             prior_mu=prior_mu,
@@ -216,27 +219,37 @@ def separate_priors(
         kl_iterations.append(kl)
 
         print("iteration", iteration)
-        print(f"expected mae {mae}")
-        print(f"expected nonvariance {nonvariance}")
+        # print(f"expected mae {mae}")
+        # print(f"expected nonvariance {nonvariance}")
         print("kl divergence from previous", kl)
-        save_iteration_stats(
-            iteration=iteration,
-            save_dir=save_dir,
-            mae_iterations=mae_iterations,
-            nonvariance_iterations=nonvariance_iterations,
-            kl_iterations=kl_iterations,
-            prior_mu=prior_mu,
-            prior_v=prior_v,
-            m_mesh=m_mesh,
-            v_mesh=v_mesh,
-        )
+        # save_iteration_stats(
+        #     iteration=iteration,
+        #     save_dir=save_dir,
+        #     mae_iterations=mae_iterations,
+        #     nonvariance_iterations=nonvariance_iterations,
+        #     kl_iterations=kl_iterations,
+        #     prior_mu=prior_mu,
+        #     prior_v=prior_v,
+        #     m_mesh=m_mesh,
+        #     v_mesh=v_mesh,
+        # )
     
-    projection_sizes = [1, 2, 3]+list(range(5, 30, 5)) + list(range(30, 101, 10))
+    projection_sizes = [1, 2, 3]+list(range(5, 30, 5)) + list(range(30, 51, 10))
     if ensemble_size not in projection_sizes:
         projection_sizes.append(ensemble_size)
         projection_sizes.sort()
     projected_mae = []
     marginal_mae = []
+    nonvariance = expected_nonvariance(
+        prior_mu=prior_mu,
+        prior_v=prior_v,
+        m_mesh=m_mesh,
+        v_mesh=v_mesh,
+        y=y,
+        s2=s2,
+        n=ensemble_size,
+        denominators=denoms,
+    )
     for size in projection_sizes:
         print("size", size)
         print("project mae")

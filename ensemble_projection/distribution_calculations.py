@@ -47,14 +47,14 @@ def calc_denominator(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n):
     for j in range(len(y)):
         sample_y = y[j]
         sample_s2 = s2[j]
-        m_slices = []
-        for i in range(len(m_mesh)):
-            m = m_mesh[i]
-            p_m = prior_mu[i]
-            likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, n)
-            slice = integrate.trapz(y=likelihood_m * prior_v * p_m, x=v_mesh)
-            m_slices.append(slice)
-        denom = integrate.trapz(y=m_slices, x=m_mesh)
+        v_slices = []
+        for i in range(len(v_mesh)):
+            v = v_mesh[i]
+            p_v = prior_v[i]
+            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, n)
+            slice = integrate.trapz(y=likelihood_v * p_v * prior_mu, x=m_mesh)
+            v_slices.append(slice)
+        denom = integrate.trapz(y=v_slices, x=v_mesh)
         denominators.append(denom)
     return denominators
 
@@ -66,17 +66,17 @@ def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominato
         sample_y = y[j]
         sample_s2 = s2[j]
         denom = denominators[j]
-        m_slices = []
-        for i in range(len(m_mesh)):
-            m = m_mesh[i]
-            p_m = prior_mu[i]
-            likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, n)
+        v_slices = []
+        for i in range(len(v_mesh)):
+            v = v_mesh[i]
+            p_v = prior_v[i]
+            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, n)
             slice = integrate.trapz(
-                y=np.abs(m) * likelihood_m * prior_v * p_m,
-                x=v_mesh,
+                y=np.abs(m_mesh) * likelihood_v * p_v * prior_mu,
+                x=m_mesh,
             )
-            m_slices.append(slice)
-        numer = integrate.trapz(y=m_slices, x=m_mesh)
+            v_slices.append(slice)
+        numer = integrate.trapz(y=v_slices, x=v_mesh)
         expected_errors.append(numer / denom)
     return np.mean(expected_errors)
 
@@ -98,18 +98,18 @@ def expected_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ense
         sample_y = y[j]
         sample_s2 = s2[j]
         denom = denominators[j]
-        m_slices = []
-        for i in range(len(m_mesh)):
-            m = m_mesh[i]
-            p_m = prior_mu[i]
-            beta = beta_error(v_mesh, m, n)
-            likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, ensemble_size)
+        v_slices = []
+        for i in range(len(v_mesh)):
+            v = v_mesh[i]
+            p_v = prior_v[i]
+            beta = beta_error(v, m_mesh, n)
+            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, ensemble_size)
             slice = integrate.trapz(
-                y=beta * likelihood_m * prior_v * p_m,
-                x=v_mesh,
+                y=beta * likelihood_v * p_v * prior_mu,
+                x=m_mesh,
             )
-            m_slices.append(slice)
-        numer = integrate.trapz(y=m_slices, x=m_mesh)
+            v_slices.append(slice)
+        numer = integrate.trapz(y=v_slices, x=v_mesh)
         expected_errors.append(numer / denom)
     return np.mean(expected_errors)
 
@@ -135,18 +135,18 @@ def expected_marginal_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominat
         sample_y = y[j]
         sample_s2 = s2[j]
         denom = denominators[j]
-        m_slices = []
-        for i in range(len(m_mesh)):
-            m = m_mesh[i]
-            p_m = prior_mu[i]
-            beta = beta_marginal_error(v_mesh, m, n, sample_y, ensemble_size)
-            likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, ensemble_size)
+        v_slices = []
+        for i in range(len(v_mesh)):
+            v = v_mesh[i]
+            p_v = prior_v[i]
+            beta = beta_marginal_error(v, m_mesh, n, sample_y, ensemble_size)
+            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, ensemble_size)
             slice = integrate.trapz(
-                y=beta * likelihood_m * prior_v * p_m,
-                x=v_mesh,
+                y=beta * likelihood_v * p_v * prior_mu,
+                x=m_mesh,
             )
-            m_slices.append(slice)
-        numer = integrate.trapz(y=m_slices, x=m_mesh)
+            v_slices.append(slice)
+        numer = integrate.trapz(y=v_slices, x=v_mesh)
         expected_errors.append(numer / denom)
     return np.mean(expected_errors)
 

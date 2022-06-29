@@ -7,7 +7,7 @@ from scipy import integrate
 from ensemble_projection.utils import get_stats, get_bw_factor, kl_divergence, save_iteration_stats, save_projection
 from ensemble_projection.convergence import get_convergence_checker
 from ensemble_projection.kde import y_kde, s2_kde
-from ensemble_projection.distribution_calculations import calc_denominator, expected_marginal_mae, expected_nonvariance, expected_mae, update_separate_priors
+from ensemble_projection.distribution_calculations import calc_denominator, expected_marginal_mae, expected_nonvariance, expected_mae, persistent_likelihood, update_separate_priors
 
 
 def bayes_infer(
@@ -90,6 +90,16 @@ def separate_priors(
     )
     print(int_v)
 
+    print("likelihood")
+    likelihood = persistent_likelihood(
+        save_dir=save_dir,
+        m_mesh=m_mesh,
+        v_mesh=v_mesh,
+        y=y,
+        s2=s2,
+        n=ensemble_size,
+    )
+
     print("denoms")
     denoms = calc_denominator(
         prior_mu=prior_mu,
@@ -99,6 +109,7 @@ def separate_priors(
         y=y,
         s2=s2,
         n=ensemble_size,
+        likelihood=likelihood,
     )
     # print("mae")
     # mae = expected_mae(
@@ -111,6 +122,7 @@ def separate_priors(
     #     n=ensemble_size,
     #     denominators=denoms,
     #     ensemble_size=ensemble_size,
+        # likelihood=likelihood,
     # )
     # mae_iterations.append(mae)
     # print("nonvar")
@@ -123,6 +135,7 @@ def separate_priors(
     #     s2=s2,
     #     n=ensemble_size,
     #     denominators=denoms,
+        # likelihood=likelihood,
     # )
     # nonvariance_iterations.append(nonvariance)
 
@@ -161,6 +174,7 @@ def separate_priors(
             s2=s2,
             n=ensemble_size,
             denominators=denoms,
+            likelihood=likelihood,
         )
         print("int prior mu")
         int_m = integrate.simps(
@@ -184,6 +198,7 @@ def separate_priors(
             y=y,
             s2=s2,
             n=ensemble_size,
+            likelihood=likelihood,
         )
         # print("mae")
         # mae = expected_mae(
@@ -196,6 +211,7 @@ def separate_priors(
         #     n=ensemble_size,
         #     denominators=denoms,
         #     ensemble_size=ensemble_size,
+            # likelihood=likelihood,
         # )
         # mae_iterations.append(mae)
         # print("nonvariance")
@@ -208,6 +224,7 @@ def separate_priors(
         #     s2=s2,
         #     n=ensemble_size,
         #     denominators=denoms,
+            # likelihood=likelihood,
         # )
         # nonvariance_iterations.append(nonvariance)
         print("kl")
@@ -232,6 +249,7 @@ def separate_priors(
         #     prior_v=prior_v,
         #     m_mesh=m_mesh,
         #     v_mesh=v_mesh,
+            # likelihood=likelihood,
         # )
     
     projection_sizes = [1, 2, 3]+list(range(5, 30, 5)) + list(range(30, 51, 10))
@@ -249,6 +267,7 @@ def separate_priors(
         s2=s2,
         n=ensemble_size,
         denominators=denoms,
+        likelihood=likelihood,
     )
     for size in projection_sizes:
         print("size", size)
@@ -263,6 +282,7 @@ def separate_priors(
             n=size,
             denominators=denoms,
             ensemble_size=ensemble_size,
+            likelihood=likelihood,
         )
         projected_mae.append(p_mae)
         if size < ensemble_size:
@@ -280,7 +300,8 @@ def separate_priors(
                 s2=s2,
                 n=size - ensemble_size,
                 ensemble_size=ensemble_size,
-                denominators=denoms
+                denominators=denoms,
+                likelihood=likelihood,
             )
             marginal_mae.append(m_mae)
         save_projection(

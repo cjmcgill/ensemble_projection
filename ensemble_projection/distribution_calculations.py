@@ -10,7 +10,7 @@ from ensemble_projection.utils import get_stats, get_bw_factor
 from ensemble_projection.convergence import get_convergence_checker
 from ensemble_projection.kde import y_kde, s2_kde
 
-def likelihood(mu, v, sample_y, sample_s2, n):
+def calc_likelihood(mu, v, sample_y, sample_s2, n):
     """Returns the likelihood for a particular datapoint to be returned by a given mu or v."""
     p= np.power( v * 2 * np.pi, -n / 2) * np.exp(-1 / 2 / v * (n * np.square(sample_y - mu) + sample_s2 * (n-1)))
     return p
@@ -30,7 +30,7 @@ def persistent_likelihood(save_dir, m_mesh, v_mesh, y, s2, n):
         sample_s2 = s2[j]
         for i in range(len(m_mesh)):
             m = m_mesh[i]
-            likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, n)
+            likelihood_m = calc_likelihood(m, v_mesh, sample_y, sample_s2, n)
             likelihood_map[j, i] = likelihood_m
     del likelihood_map
     likelihood_map = np.memmap(
@@ -41,7 +41,8 @@ def persistent_likelihood(save_dir, m_mesh, v_mesh, y, s2, n):
     )
     return likelihood_map
 
-def calc_denominator(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n):
+
+def calc_denominator(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, likelihood):
     """2d integrate Im * Iv * L, for a given i"""
     denominators = []
     dm = m_mesh[1] - m_mesh[0]
@@ -52,7 +53,7 @@ def calc_denominator(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n):
         for i in range(len(v_mesh)):
             v = v_mesh[i]
             p_v = prior_v[i]
-            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, n)
+            likelihood_v = likelihood[j, :, i]
             slice = integrate.trapz(y=likelihood_v * p_v * prior_mu, dx=dm)
             v_slices.append(slice)
         denom = integrate.trapz(y=v_slices, x=v_mesh)
@@ -60,7 +61,7 @@ def calc_denominator(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n):
     return denominators
 
 
-def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators):
+def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
     """2d integrate abs(m) * Im * Iv * L, for a given i"""
     expected_errors = []
     dm = m_mesh[1] - m_mesh[0]
@@ -72,7 +73,7 @@ def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominato
         for i in range(len(v_mesh)):
             v = v_mesh[i]
             p_v = prior_v[i]
-            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, n)
+            likelihood_v = likelihood[j, :, i]
             slice = integrate.trapz(
                 y=np.abs(m_mesh) * likelihood_v * p_v * prior_mu,
                 dx=dm,
@@ -93,7 +94,7 @@ def beta_error(v_mesh, sample_m, n):
     return f
 
 
-def expected_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ensemble_size):
+def expected_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ensemble_size, likelihood):
     """2d integrate abs(m) * beta * Im * Iv * L, for a given i"""
     expected_errors = []
     dm = m_mesh[1] - m_mesh[0]
@@ -106,7 +107,7 @@ def expected_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ense
             v = v_mesh[i]
             p_v = prior_v[i]
             beta = beta_error(v, m_mesh, n)
-            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, ensemble_size)
+            likelihood_v = likelihood[j, :, i]
             slice = integrate.trapz(
                 y=beta * likelihood_v * p_v * prior_mu,
                 dx=dm,
@@ -131,7 +132,7 @@ def beta_marginal_error(v_mesh, sample_m, n, y, ensemble_size):
     return f
 
 
-def expected_marginal_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ensemble_size):
+def expected_marginal_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ensemble_size, likelihood):
     """2d integrate abs(m) * beta * Im * Iv * L, for a given i"""
     expected_errors = []
     dm = m_mesh[1] - m_mesh[0]
@@ -144,7 +145,7 @@ def expected_marginal_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominat
             v = v_mesh[i]
             p_v = prior_v[i]
             beta = beta_marginal_error(v, m_mesh, n, sample_y, ensemble_size)
-            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, ensemble_size)
+            likelihood_v = likelihood[j, :, i]
             slice = integrate.trapz(
                 y=beta * likelihood_v * p_v * prior_mu,
                 dx=dm,
@@ -155,7 +156,7 @@ def expected_marginal_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominat
     return np.mean(expected_errors)
 
 
-def update_separate_priors(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators):
+def update_separate_priors(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
     new_prior_mu = update_prior_mu(
         prior_mu=prior_mu,
         prior_v=prior_v,
@@ -165,6 +166,7 @@ def update_separate_priors(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denomina
         s2=s2,
         n=n,
         denominators=denominators,
+        likelihood=likelihood,
     )
     new_prior_v = update_prior_v(
         prior_mu=prior_mu,
@@ -175,11 +177,12 @@ def update_separate_priors(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denomina
         s2=s2,
         n=n,
         denominators=denominators,
+        likelihood=likelihood,
     )
     return new_prior_mu, new_prior_v
 
 
-def update_prior_mu(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators):
+def update_prior_mu(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
     """1d integrate Im * Iv * L over v, for a given i"""
     new_prior_mu = np.zeros_like(prior_mu)
     for j in range(len(y)):
@@ -190,7 +193,7 @@ def update_prior_mu(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators):
         for i in range(len(m_mesh)):
             m = m_mesh[i]
             p_m = prior_mu[i]
-            likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, n)
+            likelihood_m = likelihood[j, i]
             slice = integrate.trapz(
                 y=likelihood_m * prior_v * p_m,
                 x=v_mesh,
@@ -201,7 +204,7 @@ def update_prior_mu(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators):
     return new_prior_mu
 
 
-def update_prior_v(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators):
+def update_prior_v(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
     """1d integrate Im * Iv * L over mu, for a given i"""
     new_prior_v = np.zeros_like(prior_v)
     dm = m_mesh[1] - m_mesh[0]
@@ -213,7 +216,7 @@ def update_prior_v(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators):
         for i in range(len(v_mesh)):
             v = v_mesh[i]
             p_v = prior_v[i]
-            likelihood_v = likelihood(m_mesh, v, sample_y, sample_s2, n)
+            likelihood_v = likelihood[j, :, i]
             slice = integrate.trapz(
                 y=likelihood_v * prior_mu * p_v,
                 dx=dm,

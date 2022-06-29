@@ -4,6 +4,7 @@ from typing import Tuple
 import numpy as np
 import scipy
 from scipy import integrate
+from scipy.special import erf
 
 from ensemble_projection.utils import get_stats, get_bw_factor
 from ensemble_projection.convergence import get_convergence_checker
@@ -82,8 +83,11 @@ def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominato
 
 def beta_error(v_mesh, sample_m, n):
     """Returns the value across m_mesh for a given v"""
-    beta=np.square(sample_m)*n/v_mesh/2
-    f=np.exp(-beta) / np.sqrt(np.pi * beta)+scipy.special.erf(np.sqrt(beta))
+    # beta=np.square(sample_m)*n/v_mesh/2
+    # f=np.exp(-beta) / np.sqrt(np.pi * beta)+scipy.special.erf(np.sqrt(beta))
+    f = np.sqrt(2 * v_mesh / (n * np.pi)) \
+        * np.exp(-n * sample_m**2 / (2 * v_mesh)) \
+        + sample_m * erf(sample_m * np.sqrt(n / (2 * v_mesh)))
     return f
 
 
@@ -101,7 +105,7 @@ def expected_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ense
             beta = beta_error(v_mesh, m, n)
             likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, ensemble_size)
             slice = integrate.trapz(
-                y=beta * np.abs(m) * likelihood_m * prior_v * p_m,
+                y=beta * likelihood_m * prior_v * p_m,
                 x=v_mesh,
             )
             m_slices.append(slice)
@@ -114,8 +118,13 @@ def beta_marginal_error(v_mesh, sample_m, n, y, ensemble_size):
     """Returns the value across m_mesh for a given v"""
     # m = (y * ensemble_size + x * n)/(ensemble_size + n)
     # v = (n/(ensemble_size + n))**2
-    beta=np.square((sample_m * n + y * ensemble_size) / (n + ensemble_size)) * n / (v_mesh * (n / (n + ensemble_size)) ** 2) / 2
-    f=np.exp(-beta) / np.sqrt(np.pi * beta)+scipy.special.erf(np.sqrt(beta))
+    # beta=np.square((sample_m * n + y * ensemble_size) / (n + ensemble_size)) * n / (v_mesh * (n / (n + ensemble_size)) ** 2) / 2
+    # f=np.exp(-beta) / np.sqrt(np.pi * beta)+scipy.special.erf(np.sqrt(beta))
+    sub_v = v_mesh * (n / (n + ensemble_size))**2
+    sub_m = (y * ensemble_size + sample_m * n) / (ensemble_size + n)
+    f = np.sqrt(2 * sub_v / (n * np.pi)) \
+        * np.exp(-n * sub_m**2 / (2 * sub_v)) \
+        + sub_m * erf(sub_m * np.sqrt(n / (2 * sub_v)))
     return f
 
 
@@ -133,7 +142,7 @@ def expected_marginal_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominat
             beta = beta_marginal_error(v_mesh, m, n, sample_y, ensemble_size)
             likelihood_m = likelihood(m, v_mesh, sample_y, sample_s2, ensemble_size)
             slice = integrate.trapz(
-                y=beta * np.abs((m * n + sample_y * ensemble_size) / (n + ensemble_size)) * likelihood_m * prior_v * p_m,
+                y=beta * likelihood_m * prior_v * p_m,
                 x=v_mesh,
             )
             m_slices.append(slice)

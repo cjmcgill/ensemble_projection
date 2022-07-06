@@ -48,3 +48,23 @@ def manual_kde(sample_x,x_mean,x_std,bw): #for a loop
 def cum_kde(sample_mu,mu,mu_std,bw):
     p=1/2*(1+scipy.special.erf((sample_mu-mu)/np.sqrt(2)/mu_std/bw))
     return np.mean(p)
+
+
+def kde_2d(y, s2, bw, mu_mesh_size, v_mesh_size):
+    m_mesh = get_mesh_values(y, bw, mu_mesh_size)
+    m_expanded = np.reshape(m_mesh, [-1, 1])
+    y_std = np.std(y)
+    ls2 = np.log(s2)
+    ls2_std = np.std(ls2)
+    lv_mesh = get_mesh_values(ls2, bw, v_mesh_size)
+    lv_expanded = np.reshape(lv_mesh, [1, -1])
+    lv_prior = np.zeros([mu_mesh_size, v_mesh_size])
+    data_size = len(y)
+    for i in range(data_size):
+        p = 1 / (2 * np.pi * bw**2 * ls2_std * y_std) \
+            * np.exp(-1 / 2 * np.square((m_expanded - y[i]) / y_std / bw)) \
+            * np.exp(-1 / 2 * np.square((lv_expanded - ls2[i]) / ls2_std / bw))
+        lv_prior = lv_prior + p / data_size
+    v_mesh = np.exp(lv_mesh)
+    prior = lv_prior / np.reshape(v_mesh, [1, -1])
+    return m_mesh, v_mesh, prior

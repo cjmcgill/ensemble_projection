@@ -61,6 +61,22 @@ def calc_denominator(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, likelihood):
     return denominators
 
 
+def calc_denominator_2d(prior_2d, m_mesh, v_mesh, y, s2, n, likelihood):
+    """2d integrate I * L, for a given i"""
+    denominators = []
+    dm = m_mesh[1] - m_mesh[0]
+    for j in range(len(y)):
+        v_slices = []
+        for i in range(len(v_mesh)):
+            p_v = prior_2d[:, i]
+            likelihood_v = likelihood[j, :, i]
+            slice = integrate.trapz(y=likelihood_v * p_v, dx=dm)
+            v_slices.append(slice)
+        denom = integrate.trapz(y=v_slices, x=v_mesh)
+        denominators.append(denom)
+    return denominators
+
+
 def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
     """2d integrate abs(m) * Im * Iv * L, for a given i"""
     expected_errors = []
@@ -76,6 +92,26 @@ def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominato
             likelihood_v = likelihood[j, :, i]
             slice = integrate.trapz(
                 y=np.abs(m_mesh) * likelihood_v * p_v * prior_mu,
+                dx=dm,
+            )
+            v_slices.append(slice)
+        numer = integrate.trapz(y=v_slices, x=v_mesh)
+        expected_errors.append(numer / denom)
+    return np.mean(expected_errors)
+
+
+def expected_nonvariance_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
+    """2d integrate abs(m) * Im * Iv * L, for a given i"""
+    expected_errors = []
+    dm = m_mesh[1] - m_mesh[0]
+    for j in range(len(y)):
+        denom = denominators[j]
+        v_slices = []
+        for i in range(len(v_mesh)):
+            p_v = prior_2d[:, i]
+            likelihood_v = likelihood[j, :, i]
+            slice = integrate.trapz(
+                y=np.abs(m_mesh) * likelihood_v * p_v,
                 dx=dm,
             )
             v_slices.append(slice)
@@ -110,6 +146,28 @@ def expected_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ense
             likelihood_v = likelihood[j, :, i]
             slice = integrate.trapz(
                 y=beta * likelihood_v * p_v * prior_mu,
+                dx=dm,
+            )
+            v_slices.append(slice)
+        numer = integrate.trapz(y=v_slices, x=v_mesh)
+        expected_errors.append(numer / denom)
+    return np.mean(expected_errors)
+
+
+def expected_mae_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, ensemble_size, likelihood):
+    """2d integrate abs(m) * beta * Im * Iv * L, for a given i"""
+    expected_errors = []
+    dm = m_mesh[1] - m_mesh[0]
+    for j in range(len(y)):
+        denom = denominators[j]
+        v_slices = []
+        for i in range(len(v_mesh)):
+            v = v_mesh[i]
+            p_v = prior_2d[:, i]
+            beta = beta_error(v, m_mesh, n)
+            likelihood_v = likelihood[j, :, i]
+            slice = integrate.trapz(
+                y=beta * likelihood_v * p_v,
                 dx=dm,
             )
             v_slices.append(slice)
@@ -154,6 +212,31 @@ def expected_marginal_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominat
         numer = integrate.trapz(y=v_slices, x=v_mesh)
         expected_errors.append(numer / denom)
     return np.mean(expected_errors)
+
+
+def expected_marginal_mae_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, ensemble_size, likelihood):
+    """2d integrate abs(m) * beta * Im * Iv * L, for a given i"""
+    expected_errors = []
+    dm = m_mesh[1] - m_mesh[0]
+    for j in range(len(y)):
+        sample_y = y[j]
+        sample_s2 = s2[j]
+        denom = denominators[j]
+        v_slices = []
+        for i in range(len(v_mesh)):
+            v = v_mesh[i]
+            p_v = prior_2d[:, i]
+            beta = beta_marginal_error(v, m_mesh, n, sample_y, ensemble_size)
+            likelihood_v = likelihood[j, :, i]
+            slice = integrate.trapz(
+                y=beta * likelihood_v * p_v,
+                dx=dm,
+            )
+            v_slices.append(slice)
+        numer = integrate.trapz(y=v_slices, x=v_mesh)
+        expected_errors.append(numer / denom)
+    return np.mean(expected_errors)
+
 
 
 def update_separate_priors(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
@@ -225,3 +308,59 @@ def update_prior_v(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, li
         new_prior_v = new_prior_v + v_slices
 
     return new_prior_v
+
+
+def update_prior_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, likelihood):
+    new_prior_2d = np.zeros_like(prior_2d)
+    for j in range(len(y)):
+        denom = denominators[j]
+        li = likelihood[j]
+        new_prior_2d = new_prior_2d + li * prior_2d / denom / len(y)
+    return new_prior_2d
+
+
+def integrate_2d(prior_2d, m_mesh, v_mesh):
+    v_slices = np.zeros_like(v_mesh)
+    dm = m_mesh[1] - m_mesh[0]
+    for i in range(len(v_mesh)):
+        v = v_mesh[i]
+        p_v = prior_2d[:, i]
+        slice = integrate.trapz(
+            y=p_v,
+            dx = dm,
+        )
+        v_slices[i] = slice
+    integration = integrate.trapz(
+        y=v_slices,
+        x=v_mesh
+    )
+    return integration
+
+
+def kl_divergence(prior_mu, previous_prior_mu, m_mesh) -> float:
+    """Check the divergence between the prior distributions between iterations"""
+    kl = integrate.simps(
+        y=prior_mu * np.log(prior_mu / previous_prior_mu),
+        x=m_mesh,
+    )
+    return kl
+
+
+def kl_divergence_2d(prior_2d, previous_prior_2d, m_mesh, v_mesh, threshold=1e-20) -> float:
+    """Check the divergence between the prior distributions between iterations"""
+    prior_2d[prior_2d<threshold] = threshold
+    previous_prior_2d[previous_prior_2d<threshold] = threshold
+    dm = m_mesh[1] - m_mesh[0]
+    v_slices = []
+    for i in range(len(v_mesh)):
+        v = v_mesh[i]
+        prior_v = prior_2d[:, i]
+        previous_v = previous_prior_2d[:, i]
+        slice = integrate.trapz(
+            y=prior_v * np.log(prior_v / previous_v),
+            dx=dm,
+        )
+        v_slices.append(slice)
+    kl = integrate.trapz(y=v_slices, x=v_mesh)
+    return kl
+

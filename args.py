@@ -28,3 +28,9 @@ class Args(Tap):
     """The number of evaluation points to use in integration, across the mean axis."""
     v_mesh_size: int = 129
     """The number of evaluation points to use in integration, across the variance axis."""
+    prior_method: Literal["separate", "combined"] = "combined"
+    """What function form to use for the prior distribution."""
+    max_projection_size: int = 100
+    """The largest ensemble size to project out performance to."""
+    save_iteration_steps: bool = False
+    """Wheter to save the incremental stats for each iteration. Increases the calculation time. Useful for debug."""

@@ -91,17 +91,41 @@ def save_iteration_stats(
     with open(priors_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(["mu value", "mu prior", "v value", "v prior"])
+        for i in range(max(len(m_mesh), len(v_mesh))):
+            row = []
+            if i < len(m_mesh):
+                row.extend([m_mesh[i], prior_mu[i]])
+            else:
+                row.extend(["", ""])
+            if i < len(v_mesh):
+                row.extend([v_mesh[i], prior_v[i]])
+            else:
+                row.extend(["", ""])
+            writer.writerow(row)
+
+
+def save_iteration_stats_2d(
+    iteration: int,
+    save_dir: str,
+    mae_iterations: List[float],
+    nonvariance_iterations: List[float],
+    kl_iterations: List[float],
+    prior_2d: List[List[float]],
+    m_mesh: List[float],
+    v_mesh: List[float],
+):
+    stats_path = os.path.join(save_dir, "scratch", "iteration_stats.csv")
+    with open(stats_path, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(["iteration", "nonvariance", "expected_mae", "kl_divergence"])
+        for i in range(len(mae_iterations)):
+            writer.writerow([i, nonvariance_iterations[i], mae_iterations[i], kl_iterations[i]])
+    priors_path = os.path.join(save_dir, "scratch", f"prior_{iteration}.csv")
+    with open(priors_path, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(["mu rows / v columns"] + v_mesh.tolist())
         for i in range(len(m_mesh)):
-            writer.writerow([m_mesh[i], prior_mu[i], v_mesh[i], prior_v[i]])
-
-
-def kl_divergence(prior_mu, previous_prior_mu, m_mesh) -> float:
-    """Check the divergence between the prior distributions between iterations"""
-    kl = integrate.simps(
-        y=prior_mu * np.log(prior_mu / previous_prior_mu),
-        x=m_mesh,
-    )
-    return kl
+            writer.writerow([m_mesh[i]] + prior_2d[i].tolist())
 
 
 def save_projection(save_dir, projection_sizes, projected_mae, marginal_mae, nonvariance):

@@ -57,7 +57,7 @@ def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominato
     for j in range(len(y)):
         sample_y = y[j]
         sample_s2 = s2[j]
-        sample_l = get_likelihood(i, m_mesh, v_mesh, sample_y, sample_s2, n, likelihood)
+        sample_l = get_likelihood(j, m_mesh, v_mesh, sample_y, sample_s2, n, likelihood)
         denom = denominators[j]
         v_slices = []
         for i in range(len(v_mesh)):
@@ -117,7 +117,7 @@ def expected_mae(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominators, ense
     for j in range(len(y)):
         sample_y = y[j]
         sample_s2 = s2[j]
-        sample_l = get_likelihood(j, m_mesh, v_mesh, sample_y, sample_s2, n, likelihood)
+        sample_l = get_likelihood(j, m_mesh, v_mesh, sample_y, sample_s2, ensemble_size, likelihood)
         denom = denominators[j]
         v_slices = []
         for i in range(len(v_mesh)):
@@ -143,7 +143,7 @@ def expected_mae_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, ensemble_s
     for j in range(len(y)):
         sample_y = y[j]
         sample_s2 = s2[j]
-        sample_l = get_likelihood(j, m_mesh, v_mesh, sample_y, sample_s2, n, likelihood)
+        sample_l = get_likelihood(j, m_mesh, v_mesh, sample_y, sample_s2, ensemble_size, likelihood)
         denom = denominators[j]
         v_slices = []
         for i in range(len(v_mesh)):

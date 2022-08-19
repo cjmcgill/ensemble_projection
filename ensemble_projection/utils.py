@@ -10,26 +10,28 @@ def get_stats(
     target_path: str,
     preds_path: str,
     ensemble_size: int,
-    bessel_correction: bool = True,
+    no_bessel_correction: bool = True,
     truncate_data_length: int = None,
+    error_basis: bool = False,
 ) -> Tuple[np.ndarray]:
-    ids, targets = load_targets(target_path)
-    preds_ids, preds, ensemble_vars = load_preds(preds_path)
-    if ids != preds_ids:
-        raise ValueError(
-            f"The datapoint identifiers in the targets from {target_path}\
-                and the datapoint identifiers in the predictions from {preds_path}\
-                must be the same."
-        )
-    errors = preds - targets
-    if bessel_correction:
+    if not error_basis:
+        ids, targets = load_targets(target_path)
+        preds_ids, preds, ensemble_vars = load_preds(preds_path)
+        if ids != preds_ids:
+            raise ValueError(
+                f"The datapoint identifiers in the targets from {target_path}\
+                    and the datapoint identifiers in the predictions from {preds_path}\
+                    must be the same."
+            )
+        errors = preds - targets
+    else:
+        ids, errors, ensemble_vars = load_preds(preds_path)
+    if not no_bessel_correction:
         ensemble_vars = ensemble_vars * ensemble_size / (ensemble_size - 1)
     if truncate_data_length is not None and truncate_data_length > len(ids):
         truncate_data_length = None
     return (
         ids[:truncate_data_length],
-        targets[:truncate_data_length],
-        preds[:truncate_data_length],
         ensemble_vars[:truncate_data_length],
         errors[:truncate_data_length],
     )
@@ -64,15 +66,14 @@ def load_preds(path):
     return ids, preds, ensemble_vars
 
 
-def get_bw_factor(data_length: int, bw_multiplier: float):
-    bw=data_length**(-1/(1+4)) # Scott 1d
+def get_bw_factor(data_length: int, bw_multiplier: float, dimension: int = 1):
+    bw=data_length**(-1/(dimension+4)) # Scott
     # bw=(len(s2)*(1+2)/4)**(-1/(1+4)) # Silverman 1d
     return bw*bw_multiplier
 
 
 def save_iteration_stats(
     iteration: int,
-    save_dir: str,
     mae_iterations: List[float],
     nonvariance_iterations: List[float],
     kl_iterations: List[float],
@@ -80,14 +81,16 @@ def save_iteration_stats(
     prior_v: List[float],
     m_mesh: List[float],
     v_mesh: List[float],
+    save_dir: str,
+    scratch_dir: str,
 ):
-    stats_path = os.path.join(save_dir, "scratch", "iteration_stats.csv")
+    stats_path = os.path.join(save_dir, "iteration_stats.csv")
     with open(stats_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(["iteration", "nonvariance", "expected_mae", "kl_divergence"])
         for i in range(len(mae_iterations)):
             writer.writerow([i, nonvariance_iterations[i], mae_iterations[i], kl_iterations[i]])
-    priors_path = os.path.join(save_dir, "scratch", f"prior_{iteration}.csv")
+    priors_path = os.path.join(scratch_dir, f"prior_{iteration}.csv")
     with open(priors_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(["mu value", "mu prior", "v value", "v prior"])
@@ -106,21 +109,22 @@ def save_iteration_stats(
 
 def save_iteration_stats_2d(
     iteration: int,
-    save_dir: str,
     mae_iterations: List[float],
     nonvariance_iterations: List[float],
     kl_iterations: List[float],
     prior_2d: List[List[float]],
     m_mesh: List[float],
     v_mesh: List[float],
+    scratch_dir: str,
+    save_dir: str,
 ):
-    stats_path = os.path.join(save_dir, "scratch", "iteration_stats.csv")
+    stats_path = os.path.join(save_dir, "iteration_stats.csv")
     with open(stats_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(["iteration", "nonvariance", "expected_mae", "kl_divergence"])
         for i in range(len(mae_iterations)):
             writer.writerow([i, nonvariance_iterations[i], mae_iterations[i], kl_iterations[i]])
-    priors_path = os.path.join(save_dir, "scratch", f"prior_{iteration}.csv")
+    priors_path = os.path.join(scratch_dir, f"prior_{iteration}.csv")
     with open(priors_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(["mu rows / v columns"] + v_mesh.tolist())

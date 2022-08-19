@@ -7,7 +7,7 @@ def main():
     args = Args().parse_args()
     bayes_infer(**args.as_dict())
 
-cProfile.run("main()", sort="cumulative")
+# cProfile.run("main()", sort="cumulative")
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()

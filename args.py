@@ -6,7 +6,7 @@ from tap import Tap
 class Args(Tap):
     """:class:`Args` contains arguments that are used in quantifying and projecting variance error."""
 
-    target_path: str
+    target_path: str = None
     """target file containing one column with datapoint identifier and one column with targets"""
     preds_path: str
     """preds file containing columns with datapoint identifier, predicted value, and ensemble variance"""
@@ -15,10 +15,14 @@ class Args(Tap):
     save_dir: str
     """the directory where you want to save the projection results"""
 
-    convergence_method: Literal["iteration_count"] = "iteration_count"
+    convergence_method: Literal["iteration_count", "kl_threshold", "fraction_change_threshold"] = "iteration_count"
+    prior_method: Literal["separate", "combined"] = "combined"
+    """What function form to use for the prior distribution."""
+    initial_prior: Literal["kde", "likelihood", "gaussian", "uniform"] = "kde"
+    """What to use for the initial prior distribution. Likelihood only set up for combined prior."""
     optimization_iterations: int = 10
     """The number of iterations to use in refining the prior distribution"""
-    bessel_correction_needed: bool = True
+    no_bessel_correction_needed: bool = False
     """Whether to apply Bessel's correction to sample variances in the preds file."""
     truncate_data_length: int = None
     """The number of data to use in projection. Defaults to using all data."""
@@ -28,9 +32,21 @@ class Args(Tap):
     """The number of evaluation points to use in integration, across the mean axis."""
     v_mesh_size: int = 129
     """The number of evaluation points to use in integration, across the variance axis."""
-    prior_method: Literal["separate", "combined"] = "combined"
-    """What function form to use for the prior distribution."""
     max_projection_size: int = 100
     """The largest ensemble size to project out performance to."""
     save_iteration_steps: bool = False
     """Wheter to save the incremental stats for each iteration. Increases the calculation time. Useful for debug."""
+    learning_rate: float = 1.0
+    """An exponential factor to adjust the step size taken in each prior update."""
+    error_basis: bool = False
+    """Whether the predictions provided are already expressed as errors, i.e. targets are all zero."""
+    integration_method: Literal["trapz", "simps"] = "trapz"
+    """What function to use for integrating across the distribution"""
+    kl_threshold: float = 1e-5
+    """"""
+    fraction_change_threshold: float = 1e-4
+    """"""
+    scratch_dir: str = None
+    """"""
+    likelihood_calculation: Literal["persistent", "calculated"] = "persistent"
+    """"""

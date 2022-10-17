@@ -57,6 +57,7 @@ def bayes_infer(
     )
     if scratch_dir is None:
         scratch_dir = os.path.join(save_dir, "scratch")
+    os.makedirs(save_dir, exist_ok=True)
     os.makedirs(scratch_dir, exist_ok=True)
     integration_func = {
         "simps": integrate.simps,

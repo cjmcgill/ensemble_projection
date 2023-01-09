@@ -105,7 +105,7 @@ def load_ind_preds(path, truncate_data_length):
     ind_preds = ind_preds[:truncate_data_length]
     ind_preds = np.array(ind_preds, dtype=float)
     preds = np.mean(ind_preds, axis=1)
-    ensemble_vars = np.vars(ind_preds, axis=1)
+    ensemble_vars = np.var(ind_preds, axis=1)
     return ids, preds, ensemble_vars, ind_preds
 
 def get_bw_factor(data_length: int, bw_multiplier: float, dimension: int = 1):

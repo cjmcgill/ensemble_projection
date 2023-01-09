@@ -6,7 +6,7 @@ import numpy as np
 from scipy import integrate
 
 from ensemble_projection.utils import get_stats, get_bw_factor, \
-    save_iteration_stats, save_iteration_stats_2d, save_projection, load_ind_preds
+    save_iteration_stats, save_iteration_stats_2d, save_projection
 from ensemble_projection.convergence import get_convergence_checker
 from ensemble_projection.kde import get_initial_prior_func, get_initial_prior_func_2d, get_meshes, kde_2d, y_kde, s2_kde
 from ensemble_projection.distribution_calculations import calc_denominator, calc_denominator_2d, \

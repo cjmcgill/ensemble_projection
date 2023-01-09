@@ -22,7 +22,7 @@ def get_stats(
     if not error_basis:
         ids, targets = load_targets(target_path)
         if individual_preds_input:
-            preds_ids, preds, ensemble_vars, ind_preds = load_ind_preds(preds_path, ensemble_size, truncate_data_length)
+            preds_ids, preds, ensemble_vars, ind_preds = load_ind_preds(preds_path, truncate_data_length)
         else:
             preds_ids, preds, ensemble_vars = load_preds(preds_path, truncate_data_length)
         if ids != preds_ids:
@@ -34,7 +34,7 @@ def get_stats(
         errors = preds - targets
     else:
         if individual_preds_input:
-            preds_ids, preds, ensemble_vars, ind_preds = load_ind_preds(preds_path, ensemble_size, truncate_data_length)
+            preds_ids, preds, ensemble_vars, ind_preds = load_ind_preds(preds_path, truncate_data_length)
         else:
             preds_ids, preds, ensemble_vars = load_preds(preds_path, truncate_data_length)
 

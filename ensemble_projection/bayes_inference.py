@@ -6,14 +6,15 @@ import numpy as np
 from scipy import integrate
 
 from ensemble_projection.utils import get_stats, get_bw_factor, \
-    save_iteration_stats, save_iteration_stats_2d, save_projection
+    save_iteration_stats, save_iteration_stats_2d, save_projection, load_ind_preds
 from ensemble_projection.convergence import get_convergence_checker
 from ensemble_projection.kde import get_initial_prior_func, get_initial_prior_func_2d, get_meshes, kde_2d, y_kde, s2_kde
 from ensemble_projection.distribution_calculations import calc_denominator, calc_denominator_2d, \
     expected_mae_2d, expected_marginal_mae, expected_marginal_mae_2d, expected_nonvariance, \
     expected_mae, expected_nonvariance_2d, integrate_2d, update_prior_2d, update_separate_priors, \
-    kl_divergence, kl_divergence_2d
+    kl_divergence, kl_divergence_2d, nonvariance_std_2d
 from ensemble_projection.likelihood import persistent_likelihood, remove_likelihood
+from ensemble_projection.covariance import remove_covariance
 
 
 def bayes_infer(
@@ -38,7 +39,9 @@ def bayes_infer(
     kl_threshold: float = 1e-5,
     fraction_change_threshold: float = 1e-4,
     scratch_dir: str = None,
-    likelihood_calculation: str = "persistent"
+    likelihood_calculation: str = "persistent",
+    covariance_calculation: bool = False,
+    individual_preds_input: bool = False,
 ):
     """
     Perform a bayesian inference calculations for the error of a NN
@@ -47,18 +50,24 @@ def bayes_infer(
     total error with different numbers of ensemble models used.
     """
 
-    ids, ensemble_vars, errors = get_stats(
+    function_args = {k: v for k, v in locals().items() if k != 'self'}
+    if scratch_dir is None:
+        scratch_dir = os.path.join(save_dir, "scratch")
+    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(scratch_dir, exist_ok=True)
+
+    ids, ensemble_vars, errors, covariance_map = get_stats(
         target_path=target_path,
         preds_path=preds_path,
         ensemble_size=ensemble_size,
         truncate_data_length=truncate_data_length,
         no_bessel_correction=no_bessel_correction_needed,
         error_basis=error_basis,
+        individual_preds_input=individual_preds_input,
+        covariance_calculation=covariance_calculation,
+        scratch_dir=scratch_dir,
     )
-    if scratch_dir is None:
-        scratch_dir = os.path.join(save_dir, "scratch")
-    os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(scratch_dir, exist_ok=True)
+
     integration_func = {
         "simps": integrate.simps,
         "trapz": integrate.trapz,
@@ -67,34 +76,25 @@ def bayes_infer(
         "combined": combined_prior,
         "separate": separate_priors,
     }[prior_method]
+
     inference_func(
         y=errors,
         s2=ensemble_vars,
-        ensemble_size=ensemble_size,
-        convergence_method=convergence_method,
-        optimization_iterations=optimization_iterations,
-        save_dir=save_dir,
-        bw_multiplier=bw_multiplier,
-        mu_mesh_size=mu_mesh_size,
-        v_mesh_size=v_mesh_size,
-        max_projection_size=max_projection_size,
-        save_iteration_steps=save_iteration_steps,
-        initial_prior=initial_prior,
-        learning_rate=learning_rate,
-        error_basis=error_basis,
+        covariance_map=covariance_map,
         integration_func=integration_func,
-        kl_threshold=kl_threshold,
-        fraction_change_threshold=fraction_change_threshold,
-        scratch_dir=scratch_dir,
-        likelihood_calculation=likelihood_calculation,
+        **function_args,
     )
+
     if likelihood_calculation == "persistent":
         remove_likelihood(scratch_dir=scratch_dir)
+    if covariance_calculation:
+        remove_covariance(scratch_dir=scratch_dir)
 
 
 def separate_priors(
     y: np.ndarray,
     s2: np.ndarray,
+    covariances: np.ndarray,
     ensemble_size: int,
     convergence_method: str,
     optimization_iterations: int,
@@ -112,8 +112,9 @@ def separate_priors(
     kl_threshold: float = 1e-5,
     fraction_change_threshold: float = 1e-4,
     likelihood_calculation: str = "persistent",
+    **kwargs,
 ) -> Tuple[np.ndarray]:
-
+# TODO covariance implementation
     initial_mae = np.mean(np.abs(y))
     print("actual mae in data", initial_mae)
     convergence_checker = get_convergence_checker(
@@ -418,12 +419,14 @@ def separate_priors(
 def combined_prior(
     y: np.ndarray,
     s2: np.ndarray,
+    covariance_map: np.memmap,
     ensemble_size: int,
     convergence_method: str,
     optimization_iterations: int,
     save_dir: str,
     integration_func: Callable,
     scratch_dir: str,
+    preds_path: str,
     bw_multiplier: float = 1.,
     mu_mesh_size: int = 1025,
     v_mesh_size: int = 129,
@@ -435,6 +438,10 @@ def combined_prior(
     kl_threshold: float = 1e-5,
     fraction_change_threshold: float = 1e-4,
     likelihood_calculation: str = "persistent",
+    covariance_calculation: bool = False,
+    individual_preds_input: bool = False,
+    no_bessel_correction: bool = False,
+    **kwargs,
 ) -> Tuple[np.ndarray]:
 
     initial_mae = np.mean(np.abs(y))
@@ -520,7 +527,7 @@ def combined_prior(
 
     if save_iteration_steps or convergence_method == "fraction_change_threshold":
         print("nonvar")
-        nonvariance = expected_nonvariance_2d(
+        nonvariance = np.mean(expected_nonvariance_2d(
             prior_2d=prior_2d,
             m_mesh=m_mesh,
             v_mesh=v_mesh,
@@ -530,7 +537,7 @@ def combined_prior(
             denominators=denoms,
             likelihood=likelihood,
             integration_func=integration_func,
-        )
+        ))
     else:
         nonvariance = None
     nonvariance_iterations.append(nonvariance)
@@ -620,7 +627,7 @@ def combined_prior(
         
         if save_iteration_steps or convergence_method == "fraction_change_threshold":
             print("nonvariance")
-            nonvariance = expected_nonvariance_2d(
+            nonvariance = np.mean(expected_nonvariance_2d(
                 prior_2d=prior_2d,
                 m_mesh=m_mesh,
                 v_mesh=v_mesh,
@@ -630,7 +637,7 @@ def combined_prior(
                 denominators=denoms,
                 likelihood=likelihood,
                 integration_func=integration_func,
-            )
+            ))
         else:
             nonvariance = None
         nonvariance_iterations.append(nonvariance)
@@ -671,7 +678,7 @@ def combined_prior(
         projection_sizes.sort()
     projected_mae = []
     marginal_mae = []
-    nonvariance = expected_nonvariance_2d(
+    nonvariances = expected_nonvariance_2d(
         prior_2d=prior_2d,
         m_mesh=m_mesh,
         v_mesh=v_mesh,
@@ -681,6 +688,21 @@ def combined_prior(
         denominators=denoms,
         likelihood=likelihood,
         integration_func=integration_func,
+    )
+    dataset_nonvariance = np.mean(nonvariances)
+    nonvariance_std = nonvariance_std_2d(
+        prior_2d=prior_2d,
+        m_mesh=m_mesh,
+        v_mesh=v_mesh,
+        y=y,
+        s2=s2,
+        n=ensemble_size,
+        denominators=denoms,
+        likelihood=likelihood,
+        integration_func=integration_func,
+        covariance_map=covariance_map,
+        covariance_calculation=covariance_calculation,
+        nonvariances = nonvariances,
     )
     for size in projection_sizes:
         print("size", size)
@@ -722,5 +744,6 @@ def combined_prior(
             projection_sizes=projection_sizes,
             projected_mae=projected_mae,
             marginal_mae=marginal_mae,
-            nonvariance=nonvariance
+            nonvariance=dataset_nonvariance,
+            nonvariance_std=nonvariance_std,
         )

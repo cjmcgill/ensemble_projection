@@ -8,15 +8,15 @@ def persistent_covariance(covariances, scratch_dir):
         filename=covariance_path,
         dtype=float,
         mode="w+",
-        shape=(len(covariances))
+        shape=(len(covariances), len(covariances))
     )
     covariance_map[:] = covariances
-    del likelihood_map
-    likelihood_map = np.memmap(
+    del covariance_map
+    covariance_map = np.memmap(
         filename=covariance_path,
         dtype=float,
         mode="r",
-        shape=(len(covariances))
+        shape=(len(covariances), len(covariances))
     )
     return covariance_map
 

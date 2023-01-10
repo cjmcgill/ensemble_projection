@@ -5,8 +5,6 @@ from typing import List, Tuple
 import numpy as np
 from scipy import integrate
 
-from ensemble_projection.covariance import persistent_covariance
-
 
 def get_stats(
     target_path: str,
@@ -16,7 +14,6 @@ def get_stats(
     truncate_data_length: int = None,
     error_basis: bool = False,
     individual_preds_input: bool = False,
-    covariance_calculation: bool = False,
     scratch_dir: str = None,
 ) -> Tuple[np.ndarray]:
     if not error_basis:
@@ -38,25 +35,13 @@ def get_stats(
         else:
             preds_ids, preds, ensemble_vars = load_preds(preds_path, truncate_data_length)
 
-    if individual_preds_input and covariance_calculation:
-        covariances = np.cov(ind_preds, rowvar=True)
-    else:
-        covariances = None
-
     if not no_bessel_correction:
         ensemble_vars = bessel_correction(ensemble_vars, ensemble_size)
-    covariances = bessel_correction(covariances, ensemble_size)
-
-    if covariances is not None:
-        covariance_map = persistent_covariance(covariances, scratch_dir)
-    else:
-        covariance_map = None
 
     return (
         ids,
         ensemble_vars,
-        errors,
-        covariance_map,
+        errors
     )
 
 

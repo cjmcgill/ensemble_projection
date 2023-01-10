@@ -97,7 +97,7 @@ def expected_nonvariance_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, li
     return expected_errors
 
 
-def nonvariance_std_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, likelihood, integration_func, covariance_map, covariance_calculation, nonvariances):
+def nonvariance_std_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, likelihood, integration_func, nonvariances):
     """2d integrate (expected_nonvariance - abs(m))**2 * I * L, for a given i"""
     variances = []
     dm = m_mesh[1] - m_mesh[0]
@@ -121,12 +121,6 @@ def nonvariance_std_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, likelih
         variances.append(numer / denom)
 
     dataset_variance = np.sum(variances) / data_len ** 2
-    if covariance_calculation:
-        covariance_adjustment = []
-        for i in range(data_len):
-            for j in range(i):
-                covariance_adjustment.append(2 * covariance_map[i,j])
-        dataset_variance = np.sum(covariance_adjustment) / data_len ** 2
     dataset_std = np.sqrt(dataset_variance)
     return dataset_std
 

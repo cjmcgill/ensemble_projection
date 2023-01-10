@@ -16,10 +16,7 @@ class Args(Tap):
     """the directory where you want to save the projection results"""
     scratch_dir: str = None
     """location of temporary directory to store temporary files"""
-
     individual_preds_input: bool = False
-    """"""
-    covariance_calculation: bool = False
     """"""
 
     # Convergence Settings

@@ -14,8 +14,6 @@ from ensemble_projection.distribution_calculations import calc_denominator, calc
     expected_mae, expected_nonvariance_2d, integrate_2d, update_prior_2d, update_separate_priors, \
     kl_divergence, kl_divergence_2d, nonvariance_std_2d
 from ensemble_projection.likelihood import persistent_likelihood, remove_likelihood
-from ensemble_projection.covariance import remove_covariance
-
 
 def bayes_infer(
     target_path: str,
@@ -40,7 +38,6 @@ def bayes_infer(
     fraction_change_threshold: float = 1e-4,
     scratch_dir: str = None,
     likelihood_calculation: str = "persistent",
-    covariance_calculation: bool = False,
     individual_preds_input: bool = False,
 ):
     """
@@ -56,7 +53,7 @@ def bayes_infer(
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(scratch_dir, exist_ok=True)
 
-    ids, ensemble_vars, errors, covariance_map = get_stats(
+    ids, ensemble_vars, errors = get_stats(
         target_path=target_path,
         preds_path=preds_path,
         ensemble_size=ensemble_size,
@@ -64,7 +61,6 @@ def bayes_infer(
         no_bessel_correction=no_bessel_correction_needed,
         error_basis=error_basis,
         individual_preds_input=individual_preds_input,
-        covariance_calculation=covariance_calculation,
         scratch_dir=scratch_dir,
     )
 
@@ -80,21 +76,17 @@ def bayes_infer(
     inference_func(
         y=errors,
         s2=ensemble_vars,
-        covariance_map=covariance_map,
         integration_func=integration_func,
         **function_args,
     )
 
     if likelihood_calculation == "persistent":
         remove_likelihood(scratch_dir=scratch_dir)
-    if covariance_calculation:
-        remove_covariance(scratch_dir=scratch_dir)
 
 
 def separate_priors(
     y: np.ndarray,
     s2: np.ndarray,
-    covariances: np.ndarray,
     ensemble_size: int,
     convergence_method: str,
     optimization_iterations: int,
@@ -114,7 +106,6 @@ def separate_priors(
     likelihood_calculation: str = "persistent",
     **kwargs,
 ) -> Tuple[np.ndarray]:
-# TODO covariance implementation
     initial_mae = np.mean(np.abs(y))
     print("actual mae in data", initial_mae)
     convergence_checker = get_convergence_checker(
@@ -419,7 +410,6 @@ def separate_priors(
 def combined_prior(
     y: np.ndarray,
     s2: np.ndarray,
-    covariance_map: np.memmap,
     ensemble_size: int,
     convergence_method: str,
     optimization_iterations: int,
@@ -438,9 +428,6 @@ def combined_prior(
     kl_threshold: float = 1e-5,
     fraction_change_threshold: float = 1e-4,
     likelihood_calculation: str = "persistent",
-    covariance_calculation: bool = False,
-    individual_preds_input: bool = False,
-    no_bessel_correction: bool = False,
     **kwargs,
 ) -> Tuple[np.ndarray]:
 
@@ -700,8 +687,6 @@ def combined_prior(
         denominators=denoms,
         likelihood=likelihood,
         integration_func=integration_func,
-        covariance_map=covariance_map,
-        covariance_calculation=covariance_calculation,
         nonvariances = nonvariances,
     )
     for size in projection_sizes:

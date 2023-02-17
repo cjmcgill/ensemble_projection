@@ -75,7 +75,7 @@ def expected_nonvariance(prior_mu, prior_v, m_mesh, v_mesh, y, s2, n, denominato
 
 
 def expected_nonvariance_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, likelihood, integration_func):
-    """2d integrate abs(m) * Im * Iv * L, for a given i"""
+    """2d integrate abs(m) * I * L, for a given i"""
     expected_errors = []
     dm = m_mesh[1] - m_mesh[0]
     for j in range(len(y)):
@@ -94,7 +94,35 @@ def expected_nonvariance_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, li
             v_slices.append(slice)
         numer = integration_func(y=v_slices, x=v_mesh)
         expected_errors.append(numer / denom)
-    return np.mean(expected_errors)
+    return expected_errors
+
+
+def nonvariance_std_2d(prior_2d, m_mesh, v_mesh, y, s2, n, denominators, likelihood, integration_func, nonvariances):
+    """2d integrate (expected_nonvariance - abs(m))**2 * I * L, for a given i"""
+    variances = []
+    dm = m_mesh[1] - m_mesh[0]
+    data_len = len(y)
+    for j in range(data_len):
+        nonvariance = nonvariances[j]
+        denom = denominators[j]
+        sample_y = y[j]
+        sample_s2 = s2[j]
+        sample_l = get_likelihood(j, m_mesh, v_mesh, sample_y, sample_s2, n, likelihood)
+        v_slices = []
+        for i in range(len(v_mesh)):
+            p_v = prior_2d[:, i]
+            likelihood_v = sample_l[:, i]
+            slice = integration_func(
+                y=(nonvariance - np.abs(m_mesh)) ** 2 * likelihood_v * p_v,
+                dx=dm,
+            )
+            v_slices.append(slice)
+        numer = integration_func(y=v_slices, x=v_mesh)
+        variances.append(numer / denom)
+
+    dataset_variance = np.sum(variances) / data_len ** 2
+    dataset_std = np.sqrt(dataset_variance)
+    return dataset_std
 
 
 def beta_error_2d(v_mesh, m_mesh, n):

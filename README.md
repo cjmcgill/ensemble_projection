@@ -9,7 +9,7 @@ The dependencies necessary to use the ensemble projection program are included i
 
 To install using the minimum necessary environment:
 
-1. `git clone https://github.com/chemprop/chemprop.git`
+1. `git clone https://github.com/cjmcgill/ensemble_projection.git`
 2. `cd ensemble_projection`
 3. `conda env create -f environment.yml`
 
